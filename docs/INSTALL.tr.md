@@ -39,7 +39,8 @@ macOS kilit/parola ayarlarını değiştirmez.
 
 Session ismi, araç türü ve son hook zamanı gösterilir. Prompta, komut içeriğine
 ve konuşma metnine erişilmez. 15 dakika sinyal gelmezse durum bilinmiyor olarak
-gösterilir; sessiz uzun işlemler de bu duruma düşebilir.
+gösterilir; sessiz uzun işlemler de bu duruma düşebilir. 3 saat yeni sinyal
+gelmezse session listeden gizlenir.
 
 ## Kaldırma
 

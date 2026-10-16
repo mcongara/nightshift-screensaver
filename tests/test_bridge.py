@@ -55,7 +55,8 @@ class BridgeTests(unittest.TestCase):
     def test_stale_session_is_unknown_not_running(self):
         self.event("UserPromptSubmit")
         self.assertEqual(self.state(1001)["status"], "unknown")
-        self.assertEqual(bridge.sessions(90000), [])
+        self.assertEqual(self.state(100 + 3 * 60 * 60)["status"], "unknown")
+        self.assertEqual(bridge.sessions(100 + 3 * 60 * 60 + 1), [])
 
     def test_subagent_does_not_overwrite_root(self):
         self.event("UserPromptSubmit")

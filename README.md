@@ -83,7 +83,7 @@ it includes no personal settings, session state, build caches or repository hist
 - “Response complete” means the response ended, not that the overall task succeeded.
   Subagent hooks are ignored so they do not overwrite root-session status.
 - Hooks are events, not heartbeats. After 15 minutes without an event, status is
-  explicitly unknown; after 24 hours the session is hidden. Long silent tools can
+  explicitly unknown; after 3 hours the session is hidden. Long silent tools can
   appear unknown. Existing sessions are not discovered retroactively at install.
 - Optional keep-awake prevents display and system **idle** sleep while the actual
   screensaver is active. Previews cannot enable it. Stop/unlock and lease expiry

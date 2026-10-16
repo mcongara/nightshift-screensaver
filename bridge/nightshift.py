@@ -135,7 +135,7 @@ def sessions(now=None):
         try:
             state = json.loads(path.read_text())
             age = now - state["updatedAt"]
-            if age > 86400:
+            if age > 3 * 60 * 60:
                 continue
             # Hooks are events, not heartbeats. A crashed terminal may never send
             # SessionEnd; explicitly show uncertainty rather than invent liveness.

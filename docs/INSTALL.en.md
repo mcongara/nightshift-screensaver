@@ -42,7 +42,7 @@ sleep, adjust physical display brightness, or change lock/password settings.
 Only project folder names, tool types and last hook times are displayed. Prompts,
 commands and conversation content are not collected. After 15 minutes without a
 hook signal, status becomes unknown; a long silent operation can also appear
-unknown. Sessions are hidden after 24 hours without a signal. “Response complete”
+unknown. Sessions are hidden after 3 hours without a signal. “Response complete”
 means the response ended, not necessarily that the overall task succeeded.
 
 ## Uninstall

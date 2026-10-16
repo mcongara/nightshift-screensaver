@@ -72,7 +72,7 @@ araç türü tutulur. Prompt, konuşma, komut içeriği, tam dosya yolu veya mod
 tutulmaz. Hazır paketlerde kişisel ayar veya session verisi bulunmaz.
 
 Hook'lar düzenli yaşam sinyali değildir. 15 dakika yeni olay gelmezse durum
-bilinmiyor olur; 24 saat sonra session gizlenir. “Yanıt tamamlandı”, bütün işin
+bilinmiyor olur; 3 saat sonra session gizlenir. “Yanıt tamamlandı”, bütün işin
 başarıyla bittiği anlamına gelmez. Alt ajan hook'ları ana durumu değiştirmez.
 
 İsteğe bağlı uyanık tutma yalnızca gerçek ekran koruyucu açıkken otomatik ekran

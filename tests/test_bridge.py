@@ -187,5 +187,34 @@ class BridgeTests(unittest.TestCase):
             server.server_close()
 
 
+class LaunchAgentTests(unittest.TestCase):
+    def test_stop_waits_until_launchd_drops_the_job(self):
+        calls = []
+        lookups = iter([0, 0, 113])
+        def run(command, **kwargs):
+            calls.append(command[1])
+            code = next(lookups) if command[1] == "print" else 0
+            return subprocess.CompletedProcess(command, code)
+        with patch.object(installer.subprocess, "run", run), patch.object(installer.time, "sleep"):
+            installer.stop_bridge("gui/501", Path("bridge.plist"))
+        self.assertEqual(calls, ["bootout", "print", "print", "print"])
+
+    def test_start_retries_transient_bootstrap_failure(self):
+        codes = iter([5, 5, 0])
+        def run(command, **kwargs):
+            return subprocess.CompletedProcess(command, next(codes), "", "Bootstrap failed: 5")
+        with patch.object(installer.subprocess, "run", run), patch.object(installer.time, "sleep") as sleep:
+            result = installer.start_bridge("gui/501", Path("bridge.plist"))
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(sleep.call_count, 2)
+
+    def test_start_reports_persistent_failure(self):
+        def run(command, **kwargs):
+            return subprocess.CompletedProcess(command, 5, "", "Bootstrap failed: 5")
+        with patch.object(installer.subprocess, "run", run), patch.object(installer.time, "sleep"):
+            result = installer.start_bridge("gui/501", Path("bridge.plist"), attempts=3)
+        self.assertEqual(result.returncode, 5)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -10,6 +10,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import time
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "bridge"))
@@ -17,6 +18,26 @@ from nightshift import EVENTS
 
 LABEL = "local.nightshift.bridge"
 MARKER = "# nightshift-hook-v1"
+
+
+def stop_bridge(domain, launch, timeout=10):
+    # bootout returns before launchd has torn the job down; bootstrapping too
+    # early fails with "Input/output error" and leaves the bridge stopped.
+    subprocess.run(["launchctl", "bootout", domain, str(launch)], capture_output=True)
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if subprocess.run(["launchctl", "print", f"{domain}/{LABEL}"], capture_output=True).returncode:
+            return
+        time.sleep(0.25)
+
+
+def start_bridge(domain, launch, attempts=5):
+    for attempt in range(attempts):
+        result = subprocess.run(["launchctl", "bootstrap", domain, str(launch)], capture_output=True, text=True)
+        if not result.returncode:
+            return result
+        time.sleep(1 + attempt)
+    return result
 
 
 def runtime_path():
@@ -101,7 +122,7 @@ def main():
     # Capture and validate settings before modifying any installed files.
     domain = f"gui/{os.getuid()}"
     if launch.exists():
-        subprocess.run(["launchctl", "bootout", domain, str(launch)], capture_output=True)
+        stop_bridge(domain, launch)
     if args.uninstall:
         write_settings(settings_path, merged)
         if saver.exists():
@@ -126,7 +147,7 @@ def main():
     with launch.open("wb") as output:
         plistlib.dump(plist, output)
     write_settings(settings_path, merged)
-    result = subprocess.run(["launchctl", "bootstrap", domain, str(launch)], capture_output=True, text=True)
+    result = start_bridge(domain, launch)
     if result.returncode:
         print("Installed files, but launchctl could not start the bridge:", result.stderr, file=sys.stderr)
         raise SystemExit(1)

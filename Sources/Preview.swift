@@ -7,6 +7,7 @@ let canvas = NightCanvas(frame: NSRect(x: 0, y: 0, width: 1440, height: 900))
 canvas.demo = demo
 if demo {
     canvas.connected = true
+    canvas.machine = MachineLink(name: "Makine", online: !arguments.contains("--machine-offline"))
     let now = Date().timeIntervalSince1970
     canvas.agents = [
         AgentSession(id: "demo1", project: "agent-screensaver", startedAt: now - 920, updatedAt: now - 8,

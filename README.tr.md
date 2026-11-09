@@ -83,6 +83,10 @@ Yerel köprü yalnızca `127.0.0.1:47831` üzerinde çalışır; API anahtarı g
 Diğer yerel süreçler genel session durumunu okuyabilir. Ayarlardan metin parlaklığı,
 saat, proje adlarının gizlenmesi ve uyanık tutma seçilebilir.
 
+Tailscale üzerindeki bir makinenin bağlantısını göstermek için
+`~/Library/Application Support/NightShift/machine.json` dosyasına
+`{"host": "tailscale-makine-adi", "name": "Etiket"}` yaz. Dosya yoksa bir şey değişmez.
+
 Teknik ayrıntılar ve katkı adımları [İngilizce README](README.md) içindedir.
 Sorun bildirirken macOS sürümünü, seçilen dili ve tekrar etme adımlarını ekle;
 özel bilgileri çıkar.

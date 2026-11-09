@@ -95,6 +95,10 @@ it includes no personal settings, session state, build caches or repository hist
   `~/Library/Application Support/NightShift/preferences.json`.
 - Options: text brightness, clock visibility, hidden project names and keep-awake.
   On Tahoe, reopening Screen Saver settings can help a delayed Options sheet.
+- Optional Tailscale machine status: create
+  `~/Library/Application Support/NightShift/machine.json` containing
+  `{"host": "tailscale-machine-name", "name": "Label"}`. The bridge reads
+  `tailscale status` while the saver is showing; without the file nothing changes.
 
 ## Validation
 

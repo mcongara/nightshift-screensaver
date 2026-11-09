@@ -187,6 +187,52 @@ class BridgeTests(unittest.TestCase):
             server.server_close()
 
 
+class MachineTests(unittest.TestCase):
+    CONFIG = {"host": "work-mac", "name": "Makine"}
+
+    def status(self, **peer):
+        base = {"HostName": "Work Mac", "DNSName": "work-mac.tail.ts.net.", "Online": True, "Active": True,
+                "CurAddr": "10.0.0.2:41641", "Relay": "fra"}
+        return {"BackendState": "Running", "Peer": {"key": {**base, **peer}}}
+
+    def test_online_regardless_of_route_or_traffic(self):
+        online = {"name": "Makine", "online": True}
+        self.assertEqual(bridge.machine_status(self.status(), self.CONFIG), online)
+        self.assertEqual(bridge.machine_status(self.status(CurAddr=""), self.CONFIG), online)
+        self.assertEqual(bridge.machine_status(self.status(Active=False), self.CONFIG), online)
+
+    def test_offline_when_peer_down_missing_or_tailscale_stopped(self):
+        offline = {"name": "Makine", "online": False}
+        self.assertEqual(bridge.machine_status(self.status(Online=False), self.CONFIG), offline)
+        self.assertEqual(bridge.machine_status({"BackendState": "Running", "Peer": {}}, self.CONFIG), offline)
+        self.assertEqual(bridge.machine_status({**self.status(), "BackendState": "Stopped"}, self.CONFIG), offline)
+
+    def test_config_is_optional_and_validated(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(bridge, "ROOT", Path(temp)):
+            self.assertIsNone(bridge.machine_config())
+            (Path(temp) / "machine.json").write_text('{"name": "Makine"}')
+            self.assertIsNone(bridge.machine_config())
+            (Path(temp) / "machine.json").write_text('{"host": "work-mac"}')
+            self.assertEqual(bridge.machine_config(), {"host": "work-mac", "name": "work-mac"})
+
+    def test_watch_hides_unknown_and_stale_state(self):
+        watch = bridge.MachineWatch()
+        result = subprocess.CompletedProcess([], 0, stdout=json.dumps(self.status()))
+        with patch.object(bridge, "machine_config", return_value=self.CONFIG):
+            with patch.object(bridge.subprocess, "run", return_value=result) as run:
+                watch.refresh()
+            self.assertTrue(watch.current()["online"])
+            # launchd sets no TERM; without it the binary tries to open the GUI.
+            self.assertIn("TERM", run.call_args.kwargs["env"])
+            with patch.object(bridge.subprocess, "run", side_effect=OSError):
+                watch.refresh()
+            self.assertIsNone(watch.current())
+            with patch.object(bridge.subprocess, "run", return_value=result):
+                watch.refresh()
+            watch.checked -= bridge.MachineWatch.STALE_AFTER + 1
+            self.assertIsNone(watch.current())
+
+
 class LaunchAgentTests(unittest.TestCase):
     def test_runtime_prefers_alias_that_survives_python_upgrades(self):
         # Homebrew can drop bin/python3 and renames versioned paths on upgrade.

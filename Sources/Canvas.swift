@@ -19,6 +19,11 @@ struct BridgeState: Decodable {
     let sessions: [AgentSession]
     let awake: Bool?
     let preferences: SaverOptions?
+    let machine: MachineLink?
+}
+struct MachineLink: Decodable {
+    let name: String
+    let online: Bool
 }
 
 // Near-black canvas, a warm signal and a quiet typographic session list.
@@ -30,6 +35,7 @@ enum Palette {
     static let line = NSColor(calibratedWhite: 0.075, alpha: 1)
     static let signal = NSColor(calibratedRed: 0.48, green: 0.30, blue: 0.22, alpha: 1)
     static let quiet = NSColor(calibratedRed: 0.24, green: 0.32, blue: 0.28, alpha: 1)
+    static let connected = NSColor(calibratedRed: 0.22, green: 0.50, blue: 0.32, alpha: 1)
 }
 
 final class NightCanvas: NSView {
@@ -42,6 +48,7 @@ final class NightCanvas: NSView {
     var showClock = true
     var hideProjects = false
     var wakeProtected = false
+    var machine: MachineLink?
 
     override var isFlipped: Bool { true }
 
@@ -80,6 +87,16 @@ final class NightCanvas: NSView {
         let top = max(16, (bounds.height - contentHeight) / 2) + driftY
         text("Night Shift", x: x, y: top, width: width,
              size: compact ? 9 : 11, color: Palette.muted, mono: true)
+        if let machine = machine {
+            let offset: CGFloat = compact ? 78 : 96
+            let tint = machine.online ? Palette.connected : Palette.signal
+            tint.setFill()
+            NSBezierPath(ovalIn: NSRect(x: x + offset, y: top + (compact ? 5 : 6), width: 5, height: 5)).fill()
+            let name = hideProjects ? localized("Makine", "Machine") : machine.name
+            let state = machine.online ? localized("bağlı", "connected") : localized("çevrimdışı", "offline")
+            text("\(name) · \(state)", x: x + offset + 12, y: top, width: width - offset - 12,
+                 size: compact ? 9 : 11, color: tint, mono: true)
+        }
         text(resting ? localized("Bekliyor.", "Idle.") : localized("Vardiya.", "Shift."), x: x - 2, y: top + (compact ? 25 : 33), width: width,
              size: compact ? 28 : 52, color: Palette.heading, weight: .light)
         if resting {
@@ -192,6 +209,7 @@ final class StateFeed {
                     self.failureReported = true
                 }
                 canvas.wakeProtected = canvas.connected && (state?.awake ?? false)
+                canvas.machine = state?.machine
                 if let preferences = state?.preferences {
                     canvas.brightness = preferences.brightness
                     canvas.showClock = preferences.showClock

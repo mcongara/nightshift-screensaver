@@ -19,6 +19,7 @@ EVENTS = ("SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest",
           "PostToolUse", "PostToolUseFailure", "Notification", "Stop", "StopFailure", "SessionEnd")
 ROOT = Path(os.environ.get("NIGHTSHIFT_DATA_DIR", str(Path.home() / "Library/Application Support/NightShift")))
 DEFAULT_OPTIONS = {"brightness": 0.55, "showClock": True, "hideProjects": False, "keepAwake": True}
+TAILSCALE = "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
 
 
 def validate_options(data):
@@ -197,6 +198,71 @@ def health():
     return {"awake": awake, "screensaverActive": screen_saver_active(), "lastLifecycleEvent": LIFECYCLE["event"], **DIAGNOSTICS}
 
 
+def machine_config():
+    """Optional machine.json: {"host": "<tailscale name>", "name": "<label>"}."""
+    try:
+        data = json.loads((ROOT / "machine.json").read_text())
+        host = clean(data["host"], 100)
+        return {"host": host, "name": clean(data.get("name") or host, 40)} if host else None
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def machine_status(status, config):
+    offline = {"name": config["name"], "online": False}
+    if status.get("BackendState") != "Running":
+        return offline
+    wanted = config["host"].lower()
+    for peer in (status.get("Peer") or {}).values():
+        if wanted not in (str(peer.get("HostName")).lower(), str(peer.get("DNSName")).split(".")[0].lower()):
+            continue
+        return {"name": config["name"], "online": peer.get("Online") is True}
+    return offline
+
+
+class MachineWatch:
+    """Runs the CLI off the request path: /state must answer within the saver's 2s timeout."""
+    INTERVAL = 10
+    IDLE_AFTER = 30
+    STALE_AFTER = 30
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.value = None
+        self.requested = -math.inf
+        self.checked = -math.inf
+
+    def current(self):
+        with self.lock:
+            self.requested = time.monotonic()
+            return self.value if self.requested - self.checked < self.STALE_AFTER else None
+
+    def refresh(self):
+        config = machine_config()
+        value = None
+        if config:
+            try:
+                output = subprocess.run([TAILSCALE, "status", "--json"], capture_output=True, text=True,
+                                        timeout=5, check=True, env={**os.environ, "TERM": "dumb"}).stdout
+                value = machine_status(json.loads(output), config)
+            except (OSError, ValueError, TypeError, AttributeError, subprocess.SubprocessError):
+                pass
+        with self.lock:
+            self.value = value
+            self.checked = time.monotonic()
+
+    def run(self):
+        while True:
+            time.sleep(1)
+            now = time.monotonic()
+            # Poll only while a saver or preview is reading the state.
+            if now - self.requested < self.IDLE_AFTER and now - self.checked >= self.INTERVAL:
+                self.refresh()
+
+
+MACHINE = MachineWatch()
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_):
         pass
@@ -220,7 +286,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path != "/state":
             self.send(404, {"error": "not found"})
             return
-        self.send(200, {"sessions": sessions(), "version": 1, "awake": health()["awake"], "preferences": preferences()})
+        self.send(200, {"sessions": sessions(), "version": 1, "awake": health()["awake"], "preferences": preferences(), "machine": MACHINE.current()})
 
     def do_POST(self):
         if self.path == "/preferences" and not self.headers.get("Origin") and self.headers.get("X-NightShift") == "saver-v1":
@@ -279,6 +345,7 @@ def serve(port):
             if not screen_saver_active():
                 LEASE.close()
     threading.Thread(target=maintain, daemon=True).start()
+    threading.Thread(target=MACHINE.run, daemon=True).start()
     try:
         server.serve_forever()
     finally:

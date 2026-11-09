@@ -188,6 +188,17 @@ class BridgeTests(unittest.TestCase):
 
 
 class LaunchAgentTests(unittest.TestCase):
+    def test_runtime_prefers_alias_that_survives_python_upgrades(self):
+        # Homebrew can drop bin/python3 and renames versioned paths on upgrade.
+        alias = "/opt/homebrew/opt/python@3/libexec/bin/python3"
+        versioned = "/opt/homebrew/opt/python@3.14/bin/python3.14"
+        def same(path, other):
+            if str(path) == "/opt/homebrew/bin/python3":
+                raise FileNotFoundError
+            return str(path) == alias
+        with patch.object(installer.sys, "executable", versioned), patch.object(installer.Path, "samefile", same):
+            self.assertEqual(installer.runtime_path(), alias)
+
     def test_stop_waits_until_launchd_drops_the_job(self):
         calls = []
         lookups = iter([0, 0, 113])

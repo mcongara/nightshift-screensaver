@@ -41,10 +41,13 @@ def start_bridge(domain, launch, attempts=5):
 
 
 def runtime_path():
-    # Prefer stable Python entry points so a Homebrew patch upgrade does not
-    # leave hooks and LaunchAgent pointing at a deleted Cellar version.
+    # Prefer stable Python entry points so a Homebrew upgrade does not leave
+    # hooks and LaunchAgent pointing at a deleted path. The python@3 alias
+    # follows minor upgrades; bin/python3 is not always linked.
     executable = Path(sys.executable)
-    for candidate in (Path("/opt/homebrew/bin/python3"), Path("/usr/local/bin/python3")):
+    for candidate in (Path("/opt/homebrew/opt/python@3/libexec/bin/python3"),
+                      Path("/usr/local/opt/python@3/libexec/bin/python3"),
+                      Path("/opt/homebrew/bin/python3"), Path("/usr/local/bin/python3")):
         try:
             if candidate.samefile(executable):
                 return str(candidate)

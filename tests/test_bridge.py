@@ -234,16 +234,17 @@ class MachineTests(unittest.TestCase):
 
 
 class LaunchAgentTests(unittest.TestCase):
-    def test_runtime_prefers_alias_that_survives_python_upgrades(self):
-        # Homebrew can drop bin/python3 and renames versioned paths on upgrade.
-        alias = "/opt/homebrew/opt/python@3/libexec/bin/python3"
-        versioned = "/opt/homebrew/opt/python@3.14/bin/python3.14"
-        def same(path, other):
-            if str(path) == "/opt/homebrew/bin/python3":
-                raise FileNotFoundError
-            return str(path) == alias
-        with patch.object(installer.sys, "executable", versioned), patch.object(installer.Path, "samefile", same):
-            self.assertEqual(installer.runtime_path(), alias)
+    def test_runtime_uses_system_python_that_survives_homebrew_upgrades(self):
+        ok = subprocess.CompletedProcess([], 0)
+        with patch.object(installer.subprocess, "run", return_value=ok):
+            self.assertEqual(installer.runtime_path(), "/usr/bin/python3")
+
+    def test_runtime_falls_back_when_system_python_is_unusable(self):
+        # Without Command Line Tools /usr/bin/python3 is only an installer stub.
+        for outcome in (subprocess.CompletedProcess([], 1), OSError()):
+            with patch.object(installer.subprocess, "run", side_effect=[outcome]), \
+                 patch.object(installer.sys, "executable", "/opt/homebrew/bin/python3.15"):
+                self.assertEqual(installer.runtime_path(), "/opt/homebrew/bin/python3.15")
 
     def test_stop_waits_until_launchd_drops_the_job(self):
         calls = []
